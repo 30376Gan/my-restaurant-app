@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการคิว - สำหรับร้านค้า</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 font-sans min-h-screen text-gray-100">
+
+    <header class="bg-gray-800 border-b border-gray-700 p-4 text-center">
+        <h1 class="text-xl font-bold text-amber-500"><i class="fa-solid fa-clipboard-list mr-2"></i>หน้าจอบอร์ดร้านค้า (เรียกลูกค้า)</h1>
+        <p class="text-xs text-gray-400 mt-1">ระบบจะดึงข้อมูลสดใหม่จากลูกค้าโดยอัตโนมัติ</p>
+    </header>
+
+    <main class="max-w-xl mx-auto px-4 py-6">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold flex items-center">
+                    <span class="bg-amber-500 text-gray-900 px-2 py-1 rounded-lg mr-2 text-sm">LIVE</span>
+                    รายการคิวปัจจุบัน
+                </h2>
+                <button onclick="clearAllQueues()" class="text-xs bg-red-900 hover:bg-red-800 text-red-200 px-3 py-1.5 rounded-lg">ล้างคิวทั้งหมด</button>
+            </div>
+
+            <div class="overflow-y-auto max-h-[500px] border border-gray-700 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-750 text-gray-400 text-xs border-b border-gray-700">
+                            <th class="p-3 font-semibold">คิว</th>
+                            <th class="p-3 font-semibold">ลูกค้า</th>
+                            <th class="p-3 font-semibold text-center">ที่นั่ง</th>
+                            <th class="p-3 font-semibold text-right">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueTableBody"></tbody>
+                </table>
+                <div id="emptyState" class="text-center py-12 text-gray-500 hidden">
+                    <i class="fa-solid fa-inbox text-4xl mb-2 block"></i>
+                    <span>ยังไม่มีลูกค้าจองคิวเข้ามา</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ⚠️ ใส่ลิงก์ฐานข้อมูล Firebase เดียวกันกับหน้าแรก
+        const FIREBASE_URL = "ใส่ลิงก์ฐานข้อมูลของคุณตรงนี้ เช่น https://xxx.firebaseio.com/";
+
+        async function loadQueues() {
+            try {
+                const res = await fetch(`${FIREBASE_URL}/queues.json`);
+                const data = await res.json();
+                const tbody = document.getElementById('queueTableBody');
+                tbody.innerHTML = '';
+
+                if (!data) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                    return;
+                }
+                document.getElementById('emptyState').classList.add('hidden');
+
+                // แปลงข้อมูล Object เป็น Array และเรียงตามเวลาที่จองเข้ามาก่อนหลัง
+                const sortedQueues = Object.keys(data).map(key => ({ id: key, ...data[key] }))
+                                        .sort((a,b) => a.timestamp - b.timestamp);
+
+                sortedQueues.forEach((customer) => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-gray-700 hover:bg-gray-750 text-sm";
+                    row.innerHTML = `
+                        <td class="p-3 font-bold text-amber-500 text-lg">${customer.code}</td>
+                        <td class="p-3">
+                            <div class="font-medium text-gray-200">${customer.name}</div>
+                            <div class="text-xs text-gray-400">${customer.phone}</div>
+                        </td>
+                        <td class="p-3 text-center font-bold text-amber-400">${customer.seats}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="callQueue('${customer.id}', '${customer.name}', '${customer.code}')" class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                                เรียกคิว
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function callQueue(firebaseId, name, code) {
+            alert(`📢 เรียกคิวคุณ ${name} (${code}) เชิญที่โต๊ะครับ!`);
+            // พอลูกค้าเข้าโต๊ะ ให้ลบคิวนี้ออกจากฐานข้อมูล
+            await fetch(`${FIREBASE_URL}/queues/${firebaseId}.json`, { method: 'DELETE' });
+            loadQueues();
+        }
+
+        async function clearAllQueues() {
+            if(confirm('ต้องการล้างคิวทั้งหมด และเริ่มนับ Q-01 ใหม่ใช่หรือไม่?')) {
+                await fetch(`${FIREBASE_URL}/queues.json`, { method: 'DELETE' });
+                await fetch(`${FIREBASE_URL}/currentNumber.json`, { method: 'DELETE' });
+                loadQueues();
+            }
+        }
+
+        // ให้หน้าจอร้านค้ารีเฟรชดึงข้อมูลใหม่ทุกๆ 3 วินาที (Real-time)
+        setInterval(loadQueues, 3000);
+        loadQueues();
+    </script>
+</body>
+</html>
