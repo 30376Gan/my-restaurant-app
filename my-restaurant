@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจองคิวร้านอาหาร</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+    <header class="bg-amber-500 text-white shadow-md p-4 mb-6 text-center">
+        <h1 class="text-2xl font-bold"><i class="fa-solid font-bold fa-utensils mr-2"></i>ร้านอาหาร "อร่อยจัง"</h1>
+        <p class="text-sm opacity-90 mt-1">ระบบจำลองการจองคิว (เวอร์ชันทดลองใช้งาน)</p>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+        
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="bg-amber-100 text-amber-600 p-2 rounded-lg mr-2"><i class="fa-solid fa-user-plus"></i></span>
+                สำหรับลูกค้า: จองคิวที่นี่
+            </h2>
+            
+            <form id="queueForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้จอง</label>
+                    <input type="text" id="customerName" required placeholder="เช่น คุณสมชาย" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                    <input type="tel" id="customerPhone" required placeholder="เช่น 081-234-5678" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">จำนวนที่นั่ง (ท่าน)</label>
+                    <input type="number" id="customerSeats" min="1" max="20" required placeholder="เช่น 4" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <button type="submit" 
+                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md">
+                    กดจองคิวเลย
+                </button>
+            </form>
+
+            <div id="successCard" class="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl hidden">
+                <div class="text-center">
+                    <i class="fa-solid fa-circle-check text-green-500 text-3xl mb-2"></i>
+                    <h3 class="font-bold text-green-800 text-lg">จองคิวสำเร็จ!</h3>
+                    <p class="text-gray-600 text-sm mt-1">คิวของคุณคือหมายเลข</p>
+                    <div id="ticketNumber" class="text-4xl font-extrabold text-amber-600 my-2">Q-01</div>
+                    <p id="ticketInfo" class="text-xs text-gray-500"></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                <span class="flex items-center">
+                    <span class="bg-gray-100 text-gray-600 p-2 rounded-lg mr-2"><i class="fa-solid fa-clipboard-list"></i></span>
+                    สำหรับร้านค้า: จัดการคิว
+                </span>
+                <span id="queueCount" class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">รออยู่ 0 คิว</span>
+            </h2>
+
+            <div class="flex-1 overflow-y-auto max-h-[400px] border border-gray-100 rounded-xl" id="queueListContainer">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm border-b border-gray-100">
+                            <th class="p-3 font-semibold">คิว</th>
+                            <th class="p-3 font-semibold">ลูกค้า</th>
+                            <th class="p-3 font-semibold text-center">ที่นั่ง</th>
+                            <th class="p-3 font-semibold text-right">จัดการคิว</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueTableBody">
+                        </tbody>
+                </table>
+                
+                <div id="emptyState" class="text-center py-12 text-gray-400">
+                    <i class="fa-solid fa-inbox text-4xl mb-2 block"></i>
+                    <span>ยังไม่มีลูกค้าจองคิวเข้ามาในขณะนี้</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // สร้างตัวแปรเก็บข้อมูลคิว และ ตัวนับเลขคิวรันต่อไปเรื่อยๆ
+        let queueArray = [];
+        let nextQueueNumber = 1;
+
+        // ดึง Element จากหน้าจอมาใช้งาน
+        const queueForm = document.getElementById('queueForm');
+        const queueTableBody = document.getElementById('queueTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const queueCount = document.getElementById('queueCount');
+        const successCard = document.getElementById('successCard');
+        const ticketNumber = document.getElementById('ticketNumber');
+        const ticketInfo = document.getElementById('ticketInfo');
+
+        // 1. ฟังก์ชันเมื่อลูกค้ากดส่งฟอร์มจองคิว
+        queueForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // ป้องกันไม่ให้หน้าเว็บรีเฟรชเอง
+
+            // ดึงค่าจากช่องกรอกข้อมูล
+            const name = document.getElementById('customerName').value;
+            const phone = document.getElementById('customerPhone').value;
+            const seats = document.getElementById('customerSeats').value;
+            
+            // สร้างรหัสคิว เช่น Q-01, Q-02
+            const qCode = `Q-${String(nextQueueNumber).padStart(2, '0')}`;
+            nextQueueNumber++; // เพิ่มเลขคิวถัดไปไว้รอ
+
+            // บันทึกข้อมูลลง Array
+            const newCustomer = {
+                id: Date.now(), // ใช้เวลาปัจจุบันเป็น ID ของคิว
+                code: qCode,
+                name: name,
+                phone: phone,
+                seats: seats
+            };
+            queueArray.push(newCustomer);
+
+            // รีเซ็ตฟอร์มให้ว่าง
+            queueForm.reset();
+
+            // อัปเดตหน้าจอ
+            updateQueueDisplay();
+            
+            // แสดงตั๋วยืนยันให้ลูกค้าเห็น
+            ticketNumber.textContent = qCode;
+            ticketInfo.textContent = `คุณ ${name} (${seats} ที่นั่ง) | โทร: ${phone}`;
+            successCard.classList.remove('hidden');
+        });
+
+        // 2. ฟังก์ชันอัปเดตการแสดงผลบนหน้าเว็บ
+        function updateQueueDisplay() {
+            // อัปเดตตัวเลขจำนวนคิวที่รออยู่
+            queueCount.textContent = `รออยู่ ${queueArray.length} คิว`;
+
+            // ล้างข้อมูลเก่าในตารางออกก่อน
+            queueTableBody.innerHTML = '';
+
+            if (queueArray.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+
+                // วนลูปเอาคิวใน Array มาสร้างเป็นแถวในตาราง
+                queueArray.forEach((customer, index) => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-gray-100 hover:bg-gray-50 transition text-gray-700 text-sm";
+                    
+                    row.innerHTML = `
+                        <td class="p-3 font-bold text-amber-600">${customer.code}</td>
+                        <td class="p-3">
+                            <div class="font-medium">${customer.name}</div>
+                            <div class="text-xs text-gray-400">${customer.phone}</div>
+                        </td>
+                        <td class="p-3 text-center font-semibold">${customer.seats}</td>
+                        <td class="p-3 text-right space-x-1">
+                            <button onclick="callQueue(${customer.id})" class="bg-green-500 hover:bg-green-600 text-white text-xs px-2.5 py-1.5 rounded-lg transition duration-150">
+                                <i class="fa-solid fa-bullhorn mr-1"></i> เรียกคิว
+                            </button>
+                            <button onclick="deleteQueue(${customer.id})" class="bg-red-100 hover:bg-red-200 text-red-600 text-xs px-2.5 py-1.5 rounded-lg transition duration-150">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    queueTableBody.appendChild(row);
+                });
+            }
+        }
+
+        // 3. ฟังก์ชันกดเรียกคิว (เมื่อลูกค้าได้โต๊ะแล้ว)
+        function callQueue(id) {
+            const customer = queueArray.find(c => c.id === id);
+            if (customer) {
+                alert(`📢 เรียกคิวคุณ ${customer.name} (${customer.code}) เชิญที่โต๊ะได้เลยครับ!`);
+                // ลบคิวนี้ออกจากรายการรอมันเข้าโต๊ะแล้ว
+                queueArray = queueArray.filter(c => c.id !== id);
+                updateQueueDisplay();
+            }
+        }
+
+        // 4. ฟังก์ชันลบคิว (กรณีลูกค้าขอยกเลิก)
+        function deleteQueue(id) {
+            if (confirm('คุณต้องการยกเลิกคิวนี้ใช่หรือไม่?')) {
+                queueArray = queueArray.filter(c => c.id !== id);
+                updateQueueDisplay();
+            }
+        }
+    </script>
+</body>
+</html>
